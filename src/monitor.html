@@ -1,0 +1,2960 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Real-Time Debug Dashboard (with Console Logs)</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      /* Column for navbar on top */
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      background: #f5f5f5;
+    }
+
+    /* NEW: Top Navbar */
+    #navbar {
+      background: #2c3e50;
+      /* background: #1a252f; */
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      /* box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 100; */
+    }
+
+    #navbar h1 {
+      margin: 0;
+      font-size: 1.5em;
+    }
+
+    #nav-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    #nav-buttons button {
+      padding: 8px 16px;
+      background: #1a252f;
+      /* background: #34495e; */
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #nav-buttons button:hover {
+      background: #3d566e;
+    }
+
+    #nav-buttons button.active {
+      background: #1abc9c;
+      color: black;
+      font-weight: bold;
+    }
+
+    /* Main layout: sidebar + content */
+    #main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+
+    #sidebar {
+      width: 260px;
+      background: #2c3e50;
+      color: #fff;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+
+    #sidebar h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .client-btn {
+      padding: 10px;
+      border-radius: 6px;
+      background: #34495e;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: 0.12s;
+    }
+
+    .client-btn:hover {
+      background: #3d566e;
+    }
+
+    .client-btn.active {
+      border: 3px solid #1abc9c;
+      background: #1abc9c;
+      color: black;
+    }
+
+    #main {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      margin-top: 12px;
+    }
+
+    tr.BUY {
+      background: #e6ffed;
+    }
+
+    tr.SELL {
+      background: #ffe6e6;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    small {
+      color: #666;
+    }
+
+    #log-panel {
+      margin-top: 16px;
+      padding: 10px;
+      background: #222;
+      color: #fff;
+      height: 160px;
+      overflow: auto;
+      font-family: monospace;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 4px 6px;
+      border-radius: 6px;
+      /* margin-right: 8px; */
+      cursor: pointer;
+    }
+
+    .client-btn.mismatch {
+      background: #ff746C !important;
+      /* background: #ff0000 !important; */
+      color: #fff !important;
+    }
+
+    .client-btn.mismatch:hover {
+      background: #ff6961 !important;
+      /* background: #cc0000 !important; */
+    }
+
+    .client-btn {
+      position: relative;
+      /* Add this to make absolute positioning relative to the button */
+      padding: 10px;
+      border-radius: 6px;
+      background: #34495e;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: 0.12s;
+    }
+
+    .client-btn::after {
+      content: '';
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ccc;
+      /* default gray */
+      transition: background 0.3s;
+    }
+
+    .client-btn.status-healthy::after {
+      background: #0f0;
+      /* green */
+      box-shadow: 0 0 6px #0f0;
+    }
+
+    .client-btn.status-error::after {
+      background: #f00;
+      /* red */
+      box-shadow: 0 0 6px #f00;
+    }
+
+    :root {
+      --accent: #1abc9c;
+      --accent-dark: #16a085;
+      --danger: #e74c3c;
+      --nav: #2c3e50;
+    }
+
+    .form-group {
+      margin-bottom: 22px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 13px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-add {
+      background: var(--accent);
+      color: black;
+    }
+
+    .btn-add:hover {
+      background: var(--accent-dark);
+    }
+
+    .btn-reduce {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-reduce:hover {
+      background: #c0392b;
+    }
+
+    .small-hint {
+      font-size: 0.82rem;
+      color: #7f8c8d;
+      margin-top: 4px;
+    }
+
+    .success {
+      background: #dcfce7;
+      color: #166534;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 12px;
+      border-radius: 6px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* Make tables scrollable horizontally on narrow windows */
+    .table-responsive {
+      overflow-x: auto;
+      max-width: 100%;
+      margin-bottom: 1.5rem;
+      /* border: 1px solid #ddd; 
+  border-radius: 6px; */
+    }
+
+    /* Fix long symbols without breaking layout */
+    td,
+    th {
+      font-size: small;
+      white-space: nowrap;
+      /* keep on one line by default */
+      /* overflow: hidden; */
+      /* text-overflow: ellipsis; */
+      /* max-width: 220px; */
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+      /* Base table behavior for large screens */
+
+      /* white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;          
+  padding: 10px 12px;         */
+
+    }
+
+    /* Action column buttons - stack them vertically on smaller screens */
+    .action-buttons {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
+    /* Allow wrapping only when really needed (e.g., very narrow screens) */
+    @media (max-width: 1400px) {
+
+      td,
+      th {
+        white-space: normal;
+        /* allow wrap on laptops */
+        word-break: break-word;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .action-buttons {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .btn-action {
+        width: 100%;
+        /* buttons full width for easier click */
+      }
+    }
+
+    /* Sidebar tweaks for laptops */
+    @media (max-width: 1366px) {
+      #sidebar {
+        width: 240px;
+        /* slightly narrower */
+        padding: 12px;
+      }
+
+      #main {
+        padding: 15px;
+      }
+
+      table {
+        font-size: 0.9rem;
+        /* smaller text to fit more */
+      }
+    }
+
+    /* ────────────────────────────────────────────────
+   1200px – 1400px  → typical 13–15" laptops
+   Goal: prevent too much squeezing, start preparing for smaller space
+───────────────────────────────────────────────── */
+    @media (max-width: 1400px) and (min-width: 1201px) {
+      /* Slightly reduce cell max-width so long symbols don't force huge columns */
+      /* td, th {
+    max-width: 200px;
+  } */
+
+      /* Make action column a bit more compact but still horizontal */
+      .action-buttons {
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      /* Smaller input and buttons in action column */
+      .action-buttons input[type="number"] {
+        width: 70px;
+        font-size: 0.95rem;
+      }
+
+      .action-buttons button {
+        padding: 8px 12px;
+        font-size: 0.92rem;
+      }
+
+      /* Reduce overall table font a little */
+      table {
+        font-size: 0.94rem;
+      }
+
+      /* Give main content a bit more breathing room */
+      #main {
+        padding: 16px;
+      }
+    }
+
+    /* ────────────────────────────────────────────────
+   Below 1200px → more aggressive changes
+───────────────────────────────────────────────── */
+    @media (max-width: 1200px) {
+
+      /* Allow wrapping in cells — important for 1366×768 and similar */
+      td,
+      th {
+        white-space: normal;
+        word-break: break-word;
+        max-width: 180px;
+      }
+
+      /* Stack action buttons vertically */
+      .action-buttons {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .action-buttons input[type="number"],
+      .action-buttons button {
+        width: 100%;
+        font-size: 1rem;
+        /* keep readable */
+      }
+
+      /* Sidebar narrower */
+      #sidebar {
+        width: 220px;
+        padding: 12px;
+      }
+
+      /* Table even smaller font */
+      table {
+        font-size: 0.88rem;
+      }
+
+      #main {
+        padding: 12px;
+      }
+    }
+
+    /* Optional: very narrow laptop / tablet portrait (rare but safe) */
+    @media (max-width: 992px) {
+      #main-container {
+        flex-direction: column;
+      }
+
+      #sidebar {
+        width: 100%;
+        max-height: 40vh;
+        /* limit sidebar height */
+        order: -1;
+      }
+
+      #log-panel {
+        height: 120px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="navbar">
+    <h1></h1>
+    <div id="nav-buttons">
+      <button id="btn-dashboard" class="active">Dashboard</button>
+      <button id="btn-ratios">Ratios</button>
+      <button id="btn-rule">Rules</button>
+      <button id="btn-sl">SL Monitoring</button>
+    </div>
+  </div>
+
+  <!-- Existing layout wrapped -->
+  <div id="main-container">
+    <!-- Side Bar -->
+    <div id="sidebar">
+      <h2>Clients</h2>
+      <div id="client-list">Loading...</div>
+      <div style="margin-top:12px;">
+        <button id="btn-refresh">Refresh Users</button>
+        <button id="btn-clearlog">Clear Log</button>
+      </div>
+      <div style="margin-top:12px;">
+        <small>Console mirror (for quick glance):</small>
+        <div id="log-panel"></div>
+      </div>
+    </div>
+
+
+    <!-- Main -->
+    <div id="main">
+      <div id="dashboard-view">
+         <!-- Web Socket Connected or Disconnected single & Avabilable Fund check -->
+        <div style="display: ruby;">
+          <div>
+            <h1 id="dashboard-title">Live Orders & Positions — <span id="active-client-name"></span></h1>
+            <!-- <h1>Debug: Live Orders & Positions</h1> -->
+            <p>Orders WS: <span id="conn-orders" style="color:red">Disconnected</span> — Positions WS: <span
+                id="conn-pos" style="color:red">Disconnected</span></p>
+          </div>
+          <!-- New: Available Funds Button -->
+          <div>
+            <button id="btn-show-funds">Show Available Funds</button>
+            <span id="fund" style="font-weight: bold; font-size: x-large;"></span>
+          </div>
+        </div>
+        <!-- Order Book table -->
+        <div class="section" id="dhan-section" style="display:none;">
+          <h2>Dhan — Pending SL Orders</h2>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <!-- <th>Order ID</th> -->
+                  <th>Symbol</th>
+                  <th>Status</th>
+                  <th>Side</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Trigger</th>
+                </tr>
+              </thead>
+              <tbody id="dhan-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="6" id="dhan-total" style="text-align:right;font-weight:bold;">Total SL Qty: 0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="section" id="sym-section" style="display:none;">
+          <h2>Symphony — Pending SL Orders</h2>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <!-- <th>Order ID</th> -->
+                  <th>Symbol</th>
+                  <th>Status</th>
+                  <th>Side</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Trigger</th>
+                </tr>
+              </thead>
+              <tbody id="sym-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="6" id="sym-total" style="text-align:right;font-weight:bold;">Total SL Qty: 0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Open Positions (Live)</h2>
+          <div style="margin-bottom: 15px;">
+            <!-- Search bar -->
+            <input type="text" id="position-search" placeholder="Search Position Symbol..." style="padding:10px;width:300px;border-radius:6px;border:1px solid #ccc;"
+            >
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr id="positions-header-row">
+                  <th>Symbol</th>
+                  <th>Buy Qty</th>
+                  <th>Sell Qty</th>
+                  <th>Net Qty</th>
+                  <th>Buy Avg</th>
+                  <th>Sell Avg</th>
+                  <th>Square Off</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="pos-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="8" id="pos-total" style="text-align:right;font-weight:bold;">Total Net Qty: 0</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== RATIOS VIEW (new) ==================== -->
+      <div id="ratios-view" style="display:none;">
+        <div class="container">
+          <div class="table-responsive">
+            <table id="ratio-table" style="width:100%; border-collapse:collapse; margin-top:20px; display:none;">
+              <thead>
+                <tr>
+                  <th>Client ID</th>
+                  <th>Amount</th>
+                  <th>Ratio (%)</th>
+                </tr>
+              </thead>
+              <tbody id="ratio-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== RULES VIEW (new) ==================== -->
+      <div id="rules-view" style="display:none;">
+        <h1>Position Rules Evaluation — Client 999SP2</h1>
+
+        <div class="table-responsive">
+          <table id="rules-table" style="width:100%; border-collapse:collapse; display:none;">
+            <thead>
+              <tr>
+                <th>Index</th>
+                <th>Symbol</th>
+                <th>Quantity</th>
+                <th>Net Amount</th>
+                <!-- <th>Status</th> -->
+                <th>Passed Rules</th>
+                <th>Failed Rules</th>
+                <th>Warnings</th>
+              </tr>
+            </thead>
+            <tbody id="rules-body"></tbody>
+          </table>
+        </div>
+
+        <div id="rules-loading" style="text-align:center; padding:40px; display:none;">
+          <p>Loading rule results...</p>
+        </div>
+
+        <div id="rules-error" style="color:red; text-align:center; padding:40px; display:none;">
+          <p>Error loading rules. Check console.</p>
+        </div>
+
+        <div id="rules-empty" style="text-align:center; padding:40px; display:none;">
+          <p>No positions found for rule evaluation.</p>
+        </div>
+      </div>
+
+      <!-- =========== Sl Monitoring =========== -->
+      <div id="sl-view" style="display:none;">
+        <h2>SL Monitoring (Live:- In House)</h2>
+        
+        <!-- Search Input -->
+        <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+          <input  type="text"  id="sl-search"  placeholder="Search by Trading Symbol..."  style="padding: 10px; width: 300px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;"
+          >
+        </div>
+        
+        <div class="table-responsive">
+          <table id="sl-table">
+            <thead>
+              <tr>
+                <th data-sort="symbol" style="cursor:pointer;">Symbol</th>
+                <th data-sort="sl_type" style="cursor:pointer;">SL Type</th>
+                <th data-sort="qty" style="cursor:pointer;">Net Qty</th>
+                <th data-sort="avg_sell" style="cursor:pointer;">Avg Sell</th>
+                <th data-sort="status" style="cursor:pointer;">Status</th>
+                <th data-sort="trigger" style="cursor:pointer;">Trigger</th>
+                <th data-sort="sl_price" style="cursor:pointer;">SL Price</th>
+                <th data-sort="ltp" style="cursor:pointer;">LTP</th>
+                <th data-sort="75%" style="cursor:pointer;">75% Trigger</th>
+              </tr>
+            </thead>
+            <tbody id="sl-body"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="9" id="sl-total" style="text-align:right;font-weight:bold;">
+                  Net Quantity: 0
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        
+      </div>
+
+      <!-- =========== Square Off Trades Table =========== -->
+      <div id="sl-squareoff-view" style="margin-top: 30px; display:none;">
+        <h2>Square Off Trades (Today)</h2>
+        
+        <div style="margin-bottom: 12px;">
+          <input 
+            type="text" 
+            id="squareoff-search" 
+            placeholder="Search by Trading Symbol..." 
+            style="padding: 10px; width: 300px; border-radius: 6px; border: 1px solid #ccc;"
+          >
+        </div>
+
+        <div class="table-responsive">
+          <table id="squareoff-table">
+            <thead>
+              <tr>
+                <th data-sort="symbol">Symbol</th>
+                <th data-sort="qty">Net Qty</th>
+                <th data-sort="ltp">LTP</th>
+                <th data-sort="trigger">Trigger Price</th>
+                <th data-sort="sl">SL Price</th>
+                <th data-sort="time">Time</th>
+              </tr>
+            </thead>
+            <tbody id="squareoff-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Static rules from rule.txt -->
+      <div id="rules-static" class="section" style="margin-top: 50px; display:none;">
+        <h2>General Trading Rules</h2>
+        <div id="static-rules-container">
+          <div id="static-rules-loading" style="text-align:center; padding:20px;">
+            Loading static rules...
+          </div>
+          <ol id="static-rules-list" style="display:none; padding-left: 30px; line-height: 1.6; font-size: 14px;"></ol>
+          <div id="static-rules-error" style="color:red; text-align:center; padding:20px; display:none;">
+            Failed to load static rules.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function safeJSONParse(raw) {
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        console.error("safeJSONParse failed:", e, raw);
+        return null;
+      }
+    }
+
+    /* ---------------- Debug utilities ---------------- */
+    function appendLog(msg) {
+      try {
+        if (suppressLogs) {
+          // cheap in-memory fallback: still write to console (quick) and keep last small buffer if needed
+          console.log("[log-suppressed] " + msg);
+          return;
+        }
+        const p = document.getElementById("log-panel");
+        const time = new Date().toISOString().substr(11, 8);
+        p.innerText = time + "  " + msg + "\n" + p.innerText;
+      } catch (e) { console.log("log write failed", e) }
+    }
+
+    /* ---------------- Global state ---------------- */
+    let currentUser = null;
+    let wsOrders = null;
+    let wsPositions = null;
+    let symCancelTimers = {};
+    const symCancelled = new Set();
+    // PERF: When replaying a large snapshot, suppress per-order DOM logging to avoid freeze
+    let suppressLogs = false;
+
+    // Add new line
+    userProvider = {};
+    allPositions = {};
+    ///
+
+    // Remember what user typed in Qty field for each symbol
+    const qtyInputMemory = new Map();  // key = symbol (string), value = current input value (string)
+
+    //---------- Snapshot caches ----------
+    let orders = {};     // keyed by order id (string) - contains order objects from backend snapshot
+    let positions = {};  // keyed by `${symbol}_${instrumentId}` - contains position objects from backend snapshot
+
+
+    const clientList = document.getElementById("client-list");
+    const connOrdersEl = document.getElementById("conn-orders");
+    const connPosEl = document.getElementById("conn-pos");
+
+    const dhanSection = document.getElementById("dhan-section");
+    const symSection = document.getElementById("sym-section");
+    const dhanBody = document.getElementById("dhan-body");
+    const symBody = document.getElementById("sym-body");
+    const posBody = document.getElementById("pos-body");
+
+    symAggMap = {};
+    posAggMap = {};
+
+    let dhanAgg = {}, symAgg = {};
+    let dhanSeen = new Set(), symSeen = new Set();
+    let symLatest = {}; // store latest Symphony order info by symbol
+    let symOrdersById = {};
+
+
+    // Snapshot gate control
+    let snapshotLoadedForOrders = false;
+    let snapshotLoadedForPositions = false;
+
+    let userStatus = {};
+
+    // Track and display active client in dashboard title
+    let activeClientId = null;
+    let parent_id = null
+
+    // Sl monitoring state
+    let wsSL = null;
+    let slData = {};  // store latest per symbol
+    let alertPlayed = {};   // track alerts per symbol
+    let sirenAudio = new Audio("/static/audio/siren.mp3");
+    
+    // Last known positions payload for the current user (used to detect real changes)
+    let lastPositionSignature = null;   // will store the raw array or stringified version
+
+    // ---- Lot Size API ----------
+    let indexLotSizes = {};  // e.g. { "BANKNIFTY": 15, "NIFTY": 25, "FINNIFTY": 40, ... }
+
+    async function loadLotSizes() {
+      try {
+        const res = await fetch('/lot-sizes');   // ← you need to create this endpoint
+        if (!res.ok) throw new Error("Failed to load lot sizes");
+
+        const data = await res.json();
+        indexLotSizes = data;   // expect { "BANKNIFTY": 15, "NIFTY": 25, ... }
+
+        console.log("Lot sizes loaded:", indexLotSizes);
+        appendLog("Lot sizes loaded from backend");
+      } catch (err) {
+        console.error("Error loading lot sizes:", err);
+        appendLog("Failed to load lot sizes → manual multiples allowed");
+        // You can set fallback values here if you want
+        indexLotSizes = {
+          "BANKNIFTY": 30,
+          "NIFTY": 65,
+          "BANKEX": 30,
+          "FINNIFTY": 60,
+          "MIDCPNIFTY": 120,
+          "SENSEX": 20
+        };
+      }
+    }
+
+    function updateDashboardTitle() {
+      const titleEl = document.getElementById('active-client-name');
+      if (!titleEl) return;
+
+      if (!activeClientId || activeClientId === 'all') {
+        titleEl.textContent = 'Select a Client';
+      } else {
+        titleEl.textContent = activeClientId;
+      }
+
+    }
+
+    /* ---------------- Init & UI controls ---------------- */
+    window.onload = () => {
+      document.getElementById("btn-refresh").onclick = loadUsers;
+      document.getElementById("btn-clearlog").onclick = () => { document.getElementById("log-panel").innerText = ''; console.clear(); };
+      loadUsers();
+      loadLotSizes();
+    };
+
+    async function loadUsers() {
+      appendLog("Fetching /active-users");
+      try {
+        const res = await fetch("/active-users");
+        const j = await res.json();
+        clientList.innerHTML = "";
+
+        let users = j.data || [];
+        let parent = j.parent || {};
+        let current_broker = j.broker || {};
+
+        parent_id = parent["Parent"] || '999SP2'
+        console.log("parent_id:-", parent_id);
+
+        userProvider = current_broker
+
+        // Put Parent Id at top if it exists
+        const symIndex = users.indexOf(parent_id);
+        if (symIndex !== -1) {
+          users.splice(symIndex, 1);
+          users.unshift(parent_id);
+        }
+
+        users.forEach(uid => {
+          const btn = document.createElement("div");
+          btn.className = "client-btn";
+          btn.innerText = uid;
+          btn.dataset.uid = uid;
+
+          // === CLICK HANDLER FOR EACH CLIENT BUTTON ===
+          btn.onclick = () => {
+            // Highlight this button
+            document.querySelectorAll('.client-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            activeClientId = btn.innerText.trim();
+            updateDashboardTitle();
+
+            // Switch view to Dashboard (orders & positions)
+            dashboardView.style.display = 'block';
+            ratiosView.style.display = 'none';
+            rulesView.style.display = 'none';
+            slView.style.display = 'none';
+            slsquareOffView.style.display = 'none';
+            ShowFunds.innerHTML = ""
+
+            // Update navbar buttons
+            btnDashboard.classList.add('active');
+            btnRatios.classList.remove('active');
+            btnRule.classList.remove('active');
+            btnSL.classList.remove('active');
+            btnSLSquareOff.classList.remove('active');
+
+            // Call your existing selectUser function
+            selectUser(uid);
+
+            // Save selection
+            localStorage.setItem("selectedUser", uid);
+
+            appendLog(`Selected client: ${uid}`);
+          };
+
+          clientList.appendChild(btn);
+
+          // Initialize status dot as gray
+          userStatus[uid] = null;
+          updateClientButtonStatus(uid);
+        });
+
+        appendLog("Active users loaded: " + JSON.stringify(j.data || []));
+
+        // Auto-select saved or first user
+        const saved = localStorage.getItem("selectedUser");
+        if (saved && users.includes(saved)) {
+          // Trigger click on the button to activate everything
+          const savedBtn = [...clientList.children].find(b => b.innerText === saved);
+          if (savedBtn) savedBtn.click();
+        } else if (users.length > 0) {
+          clientList.children[0]?.click(); // Simulate click on first
+        }
+
+        if (!wsOrders && !wsPositions) {
+          appendLog("Starting WebSockets after user selection");
+          initWebSockets();
+        }
+      } catch (e) {
+        appendLog("ERROR fetching /active-users: " + (e?.message || e));
+        console.error("loadUsers error", e);
+      }
+    }
+
+
+    function selectUser(uid) {
+      appendLog("Selecting user: " + uid);
+      localStorage.setItem("selectedUser", uid);
+      currentUser = uid;
+      document.querySelectorAll(".client-btn").forEach(b => b.classList.toggle("active", b.innerText === uid));
+
+      // Reset UI
+      dhanSection.style.display = "none";
+      symSection.style.display = "none";
+      dhanBody.innerHTML = "";
+      symBody.innerHTML = "";
+      posBody.innerHTML = "";
+      dhanAgg = {}; symAgg = {};
+      dhanSeen = new Set(); symSeen = new Set();
+      document.getElementById("dhan-total").textContent = "Total SL Qty: 0";
+      document.getElementById("sym-total").textContent = "Total SL Qty: 0";
+      document.getElementById("pos-total").textContent = "Total Net Qty: 0";
+      loadInitialSnapshot(currentUser);
+    }
+
+
+    function updateClientButtonStatus(uid) {
+      const btn = document.querySelector(`.client-btn[data-uid="${uid}"]`);
+      if (!btn) return;
+
+      btn.classList.remove('status-healthy', 'status-error');
+
+      const st = userStatus[uid];
+      if (st === 'healthy') {
+        btn.classList.add('status-healthy');
+      } else if (st === 'error') {
+        btn.classList.add('status-error');
+      }
+      // else gray (no data yet)
+    }
+
+    /* ------------------- WebSockets for sl monotoring --------------- */
+    async function loadInitialSLData() {
+      try {
+        const response = await fetch(`http://${location.hostname}:8000/initial-sl-monitor/${currentUser}`);
+        const result = await response.json();
+
+        // slData = {};
+        squareOffData = {};
+        if (result.data && Array.isArray(result.data)) {
+          result.data.forEach(row => {
+            const symbol = row.trading_symbol;
+            if (!symbol) return;
+
+            if (row.status === "SQUARED OFF") {
+              squareOffData[symbol] = row;
+            } 
+            // else {
+            //   slData[symbol] = row;
+            // }
+          });
+        }
+
+        renderSLTable();
+        renderSquareOffTable();
+        appendLog(`Loaded initial SL data: ${Object.keys(slData).length} active, ${Object.keys(squareOffData).length} squared off`);
+      } catch (err) {
+        console.error("Failed loading SL monitor data", err);
+      }
+    }
+
+    async function initializePage() {
+      await loadInitialSLData();
+      initSLWebSocket();
+    }
+
+    function initSLWebSocket() {
+      const host = location.hostname || "localhost";
+      wsSL = new WebSocket(`ws://${host}:8000/ws/sl-monitor`);
+
+      wsSL.onopen = () => {
+        appendLog("SL WebSocket connected");
+      };
+
+      wsSL.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+
+        // Filter current user
+        if (data.userId !== currentUser) return;
+
+        if (data.event_type === "sl_monitor") {
+          delete slData[data.trading_symbol];
+          slData[data.trading_symbol] = data;
+          // delete squareOffData[data.trading_symbol];
+          checkSirenAlert(data);
+        } 
+        else if (data.event_type === "square_off") {
+          squareOffData[data.trading_symbol] = data;
+          // delete slData[data.trading_symbol];
+        }
+        renderSLTable();
+        renderSquareOffTable();
+      };
+
+      wsSL.onerror = (e) => {
+        appendLog("SL WS error");
+        console.error(e);
+      };
+
+      wsSL.onclose = () => {
+        appendLog("SL WS disconnected");
+        console.log("SL WS disconnected");
+      };
+    }
+
+    let currentSortColumn = 'symbol';
+    let currentSortDirection = 'asc';  // 'asc' or 'desc'
+
+    function renderSLTable() {
+      const tbody = document.getElementById("sl-body");
+      const searchInput = document.getElementById("sl-search").value.toUpperCase().trim();
+      tbody.innerHTML = "";
+
+      let netQty = 0;
+      let filteredCount = 0;
+
+      // Convert to array for sorting
+      let rows = Object.values(slData);
+
+      // Sort the data
+      rows.sort((a, b) => {
+        let valA, valB;
+
+        switch(currentSortColumn) {
+          case 'symbol':
+            valA = (a.trading_symbol || "").toUpperCase();
+            valB = (b.trading_symbol || "").toUpperCase();
+            return currentSortDirection === 'asc' 
+              ? valA.localeCompare(valB) 
+              : valB.localeCompare(valA);
+          
+              case 'sl_type':
+            valA = (a.sl_type || "").toUpperCase();
+            valB = (b.sl_type || "").toUpperCase();
+            return currentSortDirection === 'asc'
+              ? valA.localeCompare(valB) 
+              : valB.localeCompare(valA);
+            
+          case 'qty':
+            valA = parseInt(a.quantity || 0);
+            valB = parseInt(b.quantity || 0);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+
+          case 'avg_sell':
+            valA = parseFloat(a.avg_sell_price || 0);
+            valB = parseFloat(b.avg_sell_price || 0);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+
+          case 'status':
+            valA = (a.status || "").toUpperCase();
+            valB = (b.status || "").toUpperCase();
+            return currentSortDirection === 'asc' 
+              ? valA.localeCompare(valB) 
+              : valB.localeCompare(valA);
+
+          case 'trigger':
+            valA = parseFloat(a.trigger_price || 0);
+            valB = parseFloat(b.trigger_price || 0);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+
+          case 'sl_price':
+            valA = parseFloat(a.stop_loss_price || 0);
+            valB = parseFloat(b.stop_loss_price || 0);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+
+          case 'ltp':
+            valA = parseFloat(a.ltp || 0);
+            valB = parseFloat(b.ltp || 0);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+
+          case 'diff':
+            valA = parseFloat(a.ltp || 0) - parseFloat(a.trigger_price || 0);
+            valB = parseFloat(b.ltp || 0) - parseFloat(b.trigger_price || 0);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+
+          default:
+            return 0;
+        }
+      });
+
+      rows.forEach(row => {
+        const symbol = (row.trading_symbol || "").toUpperCase();
+
+        // Apply search filter
+        if (searchInput && !symbol.includes(searchInput)) return;
+
+        filteredCount++;
+
+        const tr = document.createElement("tr");
+        const color = row.status === "RUNNING" ? "green" : "red";
+
+        const triggerPrice = parseFloat(row.trigger_price || 0);
+        const ltp = parseFloat(row.ltp || 0);
+        const threshold75 = triggerPrice * 0.75;
+
+        // Row red when 75% reached
+        if (ltp >= threshold75) {
+          tr.style.backgroundColor = "#ffcccc";
+        }
+
+        tr.innerHTML = `
+          <td>${row.trading_symbol}</td>
+          <td>${row.sl_type}</td>
+          <td>${row.quantity}</td>
+          <td>${(row.avg_sell_price).toFixed(2)}</td>
+          <td style="color:${color}; font-weight:bold;">
+            ${row.status}
+          </td>
+          <td>${(row.trigger_price).toFixed(2)}</td>
+          <td>${(row.stop_loss_price).toFixed(2)}</td>
+          <td>${row.ltp}</td>
+          <td style="font-weight:bold; color:red;">
+            ${threshold75.toFixed(2)}
+          </td>
+        `;
+
+        netQty += parseInt(row.quantity || 0);
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("sl-total").innerText =
+        "Net Quantity: " + netQty + " | Shown: " + filteredCount;
+    }
+
+    // Live Search Handler
+    function initSLSearch() {
+      const searchInput = document.getElementById("sl-search");
+      if (searchInput) {
+        searchInput.addEventListener("input", renderSLTable);
+      }
+    }
+
+    // Initialize Clickable Sorting
+    function initSLTableSorting() {
+      const headers = document.querySelectorAll('#sl-table th[data-sort]');
+      
+      headers.forEach(header => {
+        header.addEventListener('click', () => {
+          const sortKey = header.getAttribute('data-sort');
+          
+          // Toggle direction if same column
+          if (currentSortColumn === sortKey) {
+            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+          } else {
+            currentSortColumn = sortKey;
+            currentSortDirection = 'asc';
+          }
+
+          // Update visual indicator
+          document.querySelectorAll('#sl-table th').forEach(th => {
+            th.textContent = th.textContent.replace(' ↑', '').replace(' ↓', '');
+            if (th.getAttribute('data-sort') === currentSortColumn) {
+              th.textContent += currentSortDirection === 'asc' ? ' ↑' : ' ↓';
+            }
+          });
+
+          renderSLTable();
+        });
+      });
+    }
+
+    function checkSirenAlert(row) {
+      const symbol = row.trading_symbol;
+
+      const ltp = parseFloat(row.ltp);
+      const trigger = parseFloat(row.trigger_price);
+
+      if (!ltp || !trigger) return;
+
+      const threshold = trigger * 0.75;
+
+      // 🔥 Condition: LTP reaches 75% of trigger
+      if (ltp >= threshold) {
+
+        // Avoid repeated alerts
+        if (alertPlayed[symbol]) return;
+
+        alertPlayed[symbol] = true;
+
+        playSiren();
+      }
+    }
+
+    function playSiren() {
+      try {
+        sirenAudio.currentTime = 0;
+        sirenAudio.loop = true;
+        sirenAudio.play();
+
+        // Stop after 30 seconds
+        setTimeout(() => {
+          sirenAudio.pause();
+          sirenAudio.currentTime = 0;
+        }, 30000);
+
+      } catch (err) {
+        console.error("Siren play failed:", err);
+      }
+    }
+
+    /* Creates a compact string that changes only when: - symbols are added/removed, - net qty, buy avg, or sell avg changes for any symbol */
+    function createPositionSignature(payload) {
+      if (!Array.isArray(payload) || payload.length === 0) {
+        return "empty";
+      }
+
+      // Sort by symbol to make order irrelevant
+      const sorted = [...payload].sort((a, b) => {
+        const symA = (a.TradingSymbol || a.tradingSymbol || a.symbol || "").trim();
+        const symB = (b.TradingSymbol || b.tradingSymbol || b.symbol || "").trim();
+        return symA.localeCompare(symB);
+      });
+
+      // Build mini-record for each position
+      const records = sorted.map(p => {
+        const sym = (p.TradingSymbol || p.tradingSymbol || p.symbol || "").trim();
+
+        // Use the same logic as in your render
+        const symBuyQty = Number(p.OpenBuyQuantity || p.buyQty || 0);
+        const symSellQty = Number(p.OpenSellQuantity || p.sellQty || 0);
+        const symNetQty = Number(p.Quantity || p.netQty || (symBuyQty - symSellQty) || 0);
+        const dhanNetQty = Number(p.netQty || p.NetQty || p.NetQuantity || 0);
+        const netQty = symNetQty || dhanNetQty;
+
+        const buyAvg = Number(p.BuyAveragePrice || p.buyAvg || p.buyAverage || 0).toFixed(2);
+        const sellAvg = Number(p.SellAveragePrice || p.sellAvg || p.sellAverage || p.ActualSellAveragePrice || 0).toFixed(2);
+
+        // Format: symbol|netQty|buyAvg|sellAvg
+        return `${sym}|${netQty}|${buyAvg}|${sellAvg}`;
+      });
+
+      console.log("record:-", records);
+      
+      // Join with a delimiter that won't appear in data
+      return records.join("||");
+    }
+    
+    let squareOffData = {};        // Store square off trades
+    let currentSortSO = 'symbol';
+    let currentDirSO = 'desc';
+
+    // Render Square Off Table
+    function renderSquareOffTable() {
+      const tbody = document.getElementById("squareoff-body");
+      const searchVal = document.getElementById("squareoff-search").value.toUpperCase().trim();
+      
+      tbody.innerHTML = "";
+
+      let rows = Object.values(squareOffData);
+
+      // Filter
+      if (searchVal) {
+        rows = rows.filter(r => (r.trading_symbol || "").toUpperCase().includes(searchVal));
+      }
+
+      // Sort (Newest first by default)
+      rows.sort((a, b) => {
+        if (currentSortSO === 'symbol') {
+          const symA = (a.trading_symbol || "").toUpperCase();
+          const symB = (b.trading_symbol || "").toUpperCase();
+          return currentDirSO === 'asc' ? symA.localeCompare(symB) : symB.localeCompare(symA);
+        }
+        // Default: sort by timestamp (newest first)
+        const timeA = new Date(a.timestamp || 0);
+        const timeB = new Date(b.timestamp || 0);
+        return currentDirSO === 'asc' ? timeA - timeB : timeB - timeA;
+      });
+
+      rows.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${row.trading_symbol}</strong></td>
+          <td>${row.quantity}</td>
+          <td>${parseFloat(row.ltp || 0).toFixed(2)}</td>
+          <td>${parseFloat(row.trigger_price || 0).toFixed(2)}</td>
+          <td>${parseFloat(row.stop_loss_price || 0).toFixed(2)}</td>
+          <td>${row.timestamp ? row.timestamp.split(" ")[1] : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Initialize Square Off Search & Sorting
+    function initSquareOffFeatures() {
+      const searchInput = document.getElementById("squareoff-search");
+      searchInput.addEventListener("input", renderSquareOffTable);
+
+      // Clickable headers
+      document.querySelectorAll('#squareoff-table th[data-sort]').forEach(header => {
+        header.addEventListener('click', () => {
+          const key = header.getAttribute('data-sort');
+          if (currentSortSO === key) {
+            currentDirSO = currentDirSO === 'asc' ? 'desc' : 'asc';
+          } else {
+            currentSortSO = key;
+            currentDirSO = 'desc';
+          }
+          renderSquareOffTable();
+        });
+      });
+    }
+
+    /* ---------------- WebSockets ---------------- */
+    function initWebSockets() {
+      const host = location.hostname || "localhost";
+      appendLog("Connecting WS to host: " + host);
+
+      // -------------------- ORDERS WS --------------------------
+      try {
+        wsOrders = new WebSocket(`ws://${host}:8000/ws/orders`);
+      } catch (e) {
+        appendLog("wsOrders constructor error: " + e.message);
+        console.error(e);
+        return;
+      }
+      wsOrders.onopen = () => {
+        connOrdersEl.textContent = "Connected";
+        connOrdersEl.style.color = "green";
+        appendLog("wsOrders open");
+        console.log("wsOrders open");
+      };
+      wsOrders.onerror = (err) => {
+        appendLog("wsOrders error: " + (err && err.message));
+        console.error("wsOrders error", err);
+      };
+      wsOrders.onmessage = (e) => {
+        appendLog("wsOrders MESSAGE received");
+        console.log("wsOrders raw:", e.data);
+
+        const msg = safeJSONParse(e.data);
+        if (!msg) return;
+
+        const { userId, provider, error, description } = msg;
+
+        // === STATUS DOT LOGIC START ===
+        if (userId) {
+          if (error === true) {
+            userStatus[userId] = "error";
+            appendLog(`[${provider?.toUpperCase() || "UNKNOWN"}] API ERROR for ${userId}: ${description || "Unknown"}`);
+          } else {
+            userStatus[userId] = "healthy";
+          }
+          updateClientButtonStatus(userId);
+
+          // Optional: show error in connection status bar for current user
+          if (userId === currentUser) {
+            if (error === true) {
+              connOrdersEl.textContent = `Error: ${description || "API failed"}`;
+              connOrdersEl.style.color = "red";
+            } else {
+              connOrdersEl.textContent = "Connected";
+              connOrdersEl.style.color = "green";
+            }
+          }
+        }
+        handleOrderSnapshot(e.data);
+      };
+
+      wsOrders.onclose = () => {
+        connOrdersEl.textContent = "Disconnected";
+        connOrdersEl.style.color = "red";
+        appendLog("wsOrders closed: code=" + (ev.code || 0));
+        console.log("wsOrders closed", ev);
+      };
+
+
+      // ------------------------- POSITIONS WS ----------------------------
+      try {
+        wsPositions = new WebSocket(`ws://${host}:8000/ws/positions`);
+      } catch (e) {
+        appendLog("wsPositions constructor error: " + e.message);
+        console.error(e);
+        return;
+      }
+
+      wsPositions.onopen = () => {
+        connPosEl.textContent = "Connected";
+        connPosEl.style.color = "green";
+        appendLog("wsPositions open");
+        console.log("wsPositions open");
+      };
+      wsPositions.onmessage = (e) => {
+        appendLog("wsPositions MESSAGE received");
+        console.log("wsPositions raw:", e.data);
+
+        // Add new line 
+        const d = JSON.parse(e.data);
+        if (d.userId && d.provider) {
+          userProvider[d.userId] = d.provider; // set "symphony" or "dhan"
+        }
+
+        // Only process if it's for current user and has payload
+        if (String(d.userId) !== String(currentUser)) return;
+        if (!Array.isArray(d.payload)) return;
+
+        // ──────────────────────────────────────────────────────────────
+        //  Detect whether positions actually changed
+        // ──────────────────────────────────────────────────────────────
+        const currentSignature = createPositionSignature(d.payload);          // simple deep compare
+
+        if (lastPositionSignature === currentSignature) {
+          // Nothing changed → skip rendering
+          console.log("Positions WS: no change detected → skipping render");
+          return;
+        }
+
+        // Update the remembered state
+        lastPositionSignature = currentSignature;
+
+        if (d.userId && Array.isArray(d.payload)) {
+          allPositions[d.userId] = d.payload.reduce((a, p) => {
+            const sym = p.TradingSymbol || p.tradingSymbol || p.symbol;
+            const id = p.ExchangeInstrumentId || p.securityId || p.instrumentId;
+            if (sym && id) a[`${sym}_${id}`] = p;
+            return a;
+          }, {});
+        }
+        updateMismatchIndicators()
+
+        handlePositionSnapshot(e.data);
+      };
+      wsPositions.onerror = (err) => {
+        appendLog("wsPositions error: " + (err && err.message));
+        console.error("wsPositions error", err);
+      };
+      wsPositions.onclose = () => {
+        connPosEl.textContent = "Disconnected";
+        connPosEl.style.color = "red";
+        appendLog("wsPositions closed: code=" + (ev.code || 0));
+        console.log("wsPositions closed", ev);
+      };
+    }
+
+
+    /* ---------------- Order message entry point ---------------- */
+
+    function handleOrderSnapshot(raw) {
+      console.log("RAW ORDER PAYLOAD:", raw);
+
+      let msg;
+      try {
+        msg = JSON.parse(raw);
+      } catch (err) {
+        appendLog("JSON parse ERROR: " + err.message);
+        console.error("JSON parse error for order event:", err, raw);
+        return;
+      }
+
+      if (msg.event_type !== "order_update") return;
+      if (String(msg.userId) !== String(currentUser)) return;
+      if (!Array.isArray(msg.payload)) return;
+
+      const provider = msg.provider || "symphony";  // fallback if missing
+
+      // Reset UI based on provider
+      if (provider === "dhan") {
+        dhanSection.style.display = "block";
+        symSection.style.display = "none";
+
+        // Reset Dhan state
+        dhanAgg = {};
+        dhanSeen = new Set();
+        dhanBody.innerHTML = "";
+      } else {
+        // Symphony (default)
+        symSection.style.display = "block";
+        dhanSection.style.display = "none";
+
+        // Reset Symphony state (your original code)
+        symAggMap = {};
+        symBody.innerHTML = ""
+      }
+
+      // Rebuild from full snapshot
+      for (const o of msg.payload) {
+        if (provider === "dhan") {
+          handleDhan(o);  // Your existing Dhan handler
+        } else {
+          handleSymFromSnapshot(o);  // Your existing Symphony handler (unchanged)
+        }
+      }
+      renderSortedSymTable()
+
+      // Update totals
+      if (provider === "dhan") {
+        // Dhan total update (using your existing logic)
+        const totalDhan = Object.values(dhanAgg).reduce((a, b) => a + b, 0);
+        document.getElementById("dhan-total").textContent = "Total SL Qty: " + totalDhan;
+      } else {
+        updateSymAggTotal();  // Your existing Symphony total update
+      }
+    }
+
+    /* ---------------- Dhan handlers ---------------- */
+
+    function handleDhan(o) {
+      console.log("handleDhan payload:", o);
+      appendLog("handleDhan payload: " + JSON.stringify({ orderId: o.orderId, orderType: o.orderType, orderStatus: o.orderStatus, qty: o.quantity }));
+
+      const type = (o.orderType || "").toString().toUpperCase();
+      const status = (o.orderStatus || "").toString().toUpperCase();
+      const validTypes = ["Limit", "LIMIT", "STOP_LOSS", "STOPLOSS", "STOP_LIMIT", "STOPLIMIT", "SL", "STOP_LOSS_MARKET"];
+
+      if (!validTypes.includes(type)) {
+        appendLog("Dhan ignored: type " + type);
+        return;
+      }
+      if (!["PENDING", "TRANSIT"].includes(status)) {
+        appendLog("Dhan ignored: status " + status);
+        return;
+      }
+
+      const orderId = String(o.orderId || o.order_id || o.exchangeOrderId || o.id || "");
+      if (dhanSeen.has(orderId)) {
+        appendLog("Dhan already seen orderId: " + orderId);
+        return;
+      }
+      dhanSeen.add(orderId);
+
+      const sym = o.tradingSymbol || o.trading_symbol || "";
+      const qty = Number(o.quantity || o.qty || 0);
+      if (!dhanAgg[sym]) dhanAgg[sym] = 0;
+      dhanAgg[sym] += qty;
+
+      appendLog("Dhan rendering orderId=" + orderId + " sym=" + sym + " qty=" + qty);
+      renderDhanRow(sym, {
+        orderId, status, side: (o.transactionType || "").toUpperCase(), qty, price: o.price, trigger: o.triggerPrice
+      }, dhanAgg[sym]);
+    }
+
+
+    function renderDhanRow(sym, o, total) {
+      console.log("renderDhanRow", sym, o, total);
+      const id = `d-${sym}`;
+      let row = document.getElementById(id);
+      if (!row) {
+        row = document.createElement("tr");
+        row.id = id;
+        row.innerHTML = "<td></td><td></td><td></td><td></td><td></td><td></td>";
+        dhanBody.prepend(row);
+      }
+      row.className = o.side || "";
+      // row.cells[0].textContent = o.orderId || "";
+      row.cells[0].textContent = sym || "";
+      row.cells[1].textContent = o.status || "";
+      row.cells[2].textContent = o.side || "";
+      row.cells[3].textContent = total || 0;
+      row.cells[4].textContent = (o.price === undefined ? "" : o.price);
+      row.cells[5].textContent = (o.trigger === undefined ? "" : o.trigger);
+      appendLog("Dhan row written: " + (o.orderId || ""));
+      document.getElementById("dhan-total").textContent = "Total SL Qty: " + Object.values(dhanAgg).reduce((a, b) => a + b, 0);
+    }
+
+    /* ---------------- Symphony handlers ---------------- */
+
+    // Short SymTable Data
+    function renderSortedSymTable() {
+      // Clear table first
+      symBody.innerHTML = "";
+
+      // Convert agg map → array
+      const rows = Object.values(symAggMap);
+
+      // Sort ASCENDING by symbol
+      rows.sort((a, b) => a.sym.localeCompare(b.sym));
+
+      // Render in order
+      for (const data of rows) {
+        const row = document.createElement("tr");
+        row.className = data.side;
+
+        row.innerHTML = `
+          <td>${data.sym}</td>
+          <td>${data.status}</td>
+          <td>${data.side}</td>
+          <td>${data.qty}</td>
+          <td>${data.price}</td>
+          <td>${data.trigger}</td>
+        `;
+
+        symBody.appendChild(row); // IMPORTANT
+      }
+    }
+
+
+    function renderSymAggRow(key, data) {
+      const rowId = `s-${key.replace(/[^a-zA-Z0-9]/g, "_")}`;
+      let row = document.getElementById(rowId);
+
+      if (!row) {
+        row = document.createElement("tr");
+        row.id = rowId;
+        row.innerHTML = "<td></td><td></td><td></td><td></td><td></td><td></td>";
+        symBody.prepend(row);
+      }
+
+      row.className = data.side;
+      // row.cells[0].textContent = "COMBINED";
+      row.cells[0].textContent = data.sym;
+      row.cells[1].textContent = data.status;
+      row.cells[2].textContent = data.side;
+      row.cells[3].textContent = data.qty;
+      row.cells[4].textContent = data.price;
+      row.cells[5].textContent = data.trigger;
+    }
+
+
+    function handleSymFromSnapshot(o) {
+      const sym = o.TradingSymbol || o.symbol || "";
+      const side = (o.OrderSide || "").toUpperCase();
+      const status = (o.OrderStatus || "").toUpperCase();
+      const type = (o.OrderType || "").toUpperCase();
+      const qty = Number(o.OrderQuantity || 0);
+      const price = o.OrderPrice || "";
+      const trigger = o.OrderStopPrice || "";
+
+      if (!sym || !side || !status || qty <= 0) return;
+
+      const validTypes = ["Limit", "LIMIT", "STOPLIMIT", "STOP_LIMIT", "STOP_LOSS", "SL", "STOP_LOSS_MARKET"];
+      if (!validTypes.includes(type)) return;
+
+      if (["PENDINGNEW", "CANCELLED", "CANCELED", "REJECTED", "CXL", "FILLED", "Filled"].includes(status)) return;
+
+      const key = `${sym}|${side}|${status}`;
+
+      // SUM WITHIN SNAPSHOT
+      if (!symAggMap[key]) {
+        symAggMap[key] = {
+          sym,
+          side,
+          status,
+          qty: 0,
+          price,
+          trigger
+        };
+      }
+
+      symAggMap[key].qty += qty;
+
+      renderSymAggRow(key, symAggMap[key]);
+    }
+
+
+    function updateSymAggTotal() {
+      const total = Object.values(symAggMap).reduce((sum, o) => sum + (o.qty || 0), 0);
+      document.getElementById("sym-total").textContent = "Total SL Qty: " + total;
+      appendLog(`New Updated Symphony total SL Qty = ${total}`);
+    }
+
+    /* ---------------- Positions ---------------- */
+
+    function handlePositionSnapshot(raw) {
+      let msg;
+      try {
+        msg = JSON.parse(raw);
+      } catch (e) {
+        console.error("Failed to parse position message:", e);
+        return;
+      }
+
+      // Accept both snapshot and incremental updates
+      if (!["position_snapshot", "position_update"].includes(msg.event_type)) return;
+      if (String(msg.userId) !== String(currentUser)) return;
+      if (!Array.isArray(msg.payload)) return;
+
+      // Determine provider
+      const isDhan = currentUser && userProvider[currentUser] === 'dhan';
+      const isSymphony = currentUser && userProvider[currentUser] === 'symphony';
+
+      // === STEP 1: Save any values user typed in Qty fields ===
+      document.querySelectorAll('#pos-body input[type="number"]').forEach(input => {
+        const row = input.closest('tr');
+        if (!row) return;
+        const symbolCell = row.cells[0];
+        if (!symbolCell) return;
+        const symbol = symbolCell.textContent.trim();
+        if (symbol && input.value.trim() !== '') {
+          qtyInputMemory.set(symbol, input.value.trim());
+        } else {
+          // User cleared the field → remove from memory
+          qtyInputMemory.delete(symbol);
+        }
+      });
+
+      // Clear current rows
+      posBody.innerHTML = "";
+
+      // Filter out zero net quantity positions
+      let positions = msg.payload.filter(p => {
+        const netQty = Number(
+          p.NetQty || p.netQty || p.Quantity || p.NetQuantity ||
+          (Number(p.OpenBuyQuantity || p.buyQty || 0) - Number(p.OpenSellQuantity || p.sellQty || 0))
+        );
+        return !isNaN(netQty) && netQty !== 0;
+      });
+
+      // Sort alphabetically by symbol
+      positions.sort((a, b) => {
+        const symA = (a.TradingSymbol || a.tradingSymbol || a.symbol || "").trim().toUpperCase();
+        const symB = (b.TradingSymbol || b.tradingSymbol || b.symbol || "").trim().toUpperCase();
+        return symA.localeCompare(symB);
+      });
+
+      // Render rows
+      for (const p of positions) {
+        const sym = p.TradingSymbol || p.tradingSymbol || p.symbol || "";
+
+        const buyAvg = Number(p.BuyAveragePrice || p.buyAvg || p.buyAverage || 0).toFixed(2);
+        const sellAvg = isSymphony ? Number(p.ActualSellAveragePrice || 0).toFixed(2) : Number(p.SellAveragePrice || p.sellAvg || p.sellAverage || 0).toFixed(2);
+
+        // Dhan fields
+        const dhanNetQty = Number(p.netQty || p.NetQty || p.NetQuantity || 0);
+        const dhanexpirydate = p.drvExpiryDate || ''
+
+        // Symphony fields
+        const symBuyQty = Number(p.OpenBuyQuantity || p.buyQty || 0);
+        const symSellQty = Number(p.OpenSellQuantity || p.sellQty || 0);
+        const symNetQty = Number(p.Quantity || p.netQty || (symBuyQty - symSellQty) || 0);
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td>${sym}</td>
+          <td>${symBuyQty}</td>
+          <td>${symSellQty}</td>
+          <td>${symNetQty || dhanNetQty}</td>
+          <td>${buyAvg}</td>
+          <td>${sellAvg}</td>
+        `;
+
+        // === Square Off column ===
+        const squareOffCell = document.createElement("td");
+
+        const btnSquareOff = document.createElement("button");
+        btnSquareOff.className = "btn btn-sm btn-warning";
+        btnSquareOff.textContent = "SQ.OFF";
+        btnSquareOff.style.minWidth = "70px";
+
+        btnSquareOff.onclick = () => {
+          if (!confirm(`Square off entire position of ${sym} for ${activeClientId}?`)) {
+            return;
+          }
+
+          // ─── Find current net qty from this row ───          
+          const currentNet = isDhan ? dhanNetQty : isSymphony ? symNetQty : symNetQty || dhanNetQty;;
+          
+          // Decide order type based on current direction
+          let orderType;
+          if (currentNet > 0) {
+              orderType = "MARKETSELL";     // already long → add more long
+          } else if (currentNet < 0) {
+              orderType = "MARKETBUY";    // already short → add more short
+          } else {
+              orderType = "MARKETSELL";     // flat → default to buy (change if you prefer sell)
+              // Alternative: orderType = "MARKETSELL";
+          }
+
+          handleSquareOffPosition(activeClientId, sym, currentNet, isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown', orderType, dhanexpirydate);
+        };
+
+        squareOffCell.appendChild(btnSquareOff);
+
+        // === Action column (Qty + ADD + REDUCE) ===
+        const actionCell = document.createElement("td");
+
+        // Container div for better alignment
+        const buttonDiv = document.createElement("div");
+        buttonDiv.style.display = "flex";
+        buttonDiv.style.alignItems = "center";
+        buttonDiv.style.gap = "6px";
+        buttonDiv.style.flexWrap = "wrap";
+
+        // Quantity input
+        const qtyInput = document.createElement("input");
+        qtyInput.type = "number";
+        qtyInput.min = "1";
+        qtyInput.placeholder = "Qty";
+        qtyInput.className = "form-control form-control-sm";
+        qtyInput.style.width = "70px";
+        qtyInput.style.textAlign = "center";
+
+        // Fix: Add id and name (removes browser warning)
+        const safeSym = sym.replace(/[^a-zA-Z0-9\-_]/g, "_");
+        qtyInput.id = `qty-input-${safeSym}`;
+        qtyInput.name = `quantity-${safeSym}`;
+        qtyInput.autocomplete = "off";
+
+        // Restore previously typed value
+        const savedQty = qtyInputMemory.get(sym);
+        if (savedQty) {
+          qtyInput.value = savedQty;
+        }
+
+        // ADD button
+        const btnAdd = document.createElement("button");
+        btnAdd.className = "btn btn-sm btn-success";
+        btnAdd.textContent = "ADD";
+        btnAdd.style.minWidth = "60px";
+
+        btnAdd.onclick = () => {
+          const qty = parseInt(qtyInput.value) || 0;
+          if (qty < 1) {
+            alert("Please enter valid quantity (≥ 1)");
+            return;
+          }
+
+          const currentNet = isDhan ? dhanNetQty : isSymphony ? symNetQty : symNetQty || dhanNetQty;;
+          
+          // Decide order type based on current direction
+          let orderType;
+          if (currentNet > 0) {
+              orderType = "MARKETBUY";     // already long → add more long
+          } else if (currentNet < 0) {
+              orderType = "MARKETSELL";    // already short → add more short
+          } else {
+              orderType = "MARKETBUY";     // flat → default to buy (change if you prefer sell)
+              // Alternative: orderType = "MARKETSELL";
+          }
+
+          handleAddPosition(activeClientId, sym, qty, isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown', orderType, dhanexpirydate);
+          qtyInput.value = '';  // clear input after action
+          qtyInputMemory.delete(sym);
+        };
+
+        // REDUCE button
+        const btnReduce = document.createElement("button");
+        btnReduce.className = "btn btn-sm btn-danger";
+        btnReduce.textContent = "REDUCE";
+        btnReduce.style.minWidth = "70px";
+
+        btnReduce.onclick = () => {
+          const qty = parseInt(qtyInput.value) || 0;
+          if (qty < 1) {
+            alert("Please enter valid quantity (≥ 1)");
+            return;
+          }
+
+          // ─── Find current net qty from this row ───          
+          const currentNet = isDhan ? dhanNetQty : isSymphony ? symNetQty : symNetQty || dhanNetQty;;
+          
+          // Decide order type based on current direction
+          let orderType;
+          if (currentNet > 0) {
+              orderType = "MARKETSELL";     // already long → add more long
+          } else if (currentNet < 0) {
+              orderType = "MARKETBUY";    // already short → add more short
+          } else {
+              orderType = "MARKETSELL";     // flat → default to buy (change if you prefer sell)
+              // Alternative: orderType = "MARKETSELL";
+          }
+
+          handleReducePosition(activeClientId, sym, qty, isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown', orderType, dhanexpirydate);
+          qtyInput.value = '';  // clear input after action
+          qtyInputMemory.delete(sym);
+        };
+
+        // Assemble action cell
+        buttonDiv.appendChild(qtyInput);
+        buttonDiv.appendChild(btnAdd);
+        buttonDiv.appendChild(btnReduce);
+
+        actionCell.appendChild(buttonDiv);
+
+        // Add both action columns to the row
+        tr.appendChild(squareOffCell);
+        tr.appendChild(actionCell);
+
+        posBody.appendChild(tr);
+
+      }
+
+      // Update footer total
+      if (typeof updatePositionsTotal === 'function') {
+        updatePositionsTotal();
+      }
+
+      appendLog(`Live position update rendered: ${positions.length} rows for ${currentUser} (${isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown'})`);
+    }
+
+
+    function updatePositionsTotal(positionCount) {
+      let total = 0;
+      posBody.querySelectorAll("tr").forEach(r => { total += Number(r.children[3].textContent || 0); });
+      document.getElementById("pos-total").textContent = "Total Net Qty: " + total+ " | Show: " + positionCount;
+    }
+
+
+    function renderOrders() {
+      appendLog("Rendering snapshot orders: " + Object.keys(orders).length);
+      console.log("renderOrders() - orders count:", Object.keys(orders).length);
+
+      suppressLogs = true;
+
+      // ---------------- RESET ----------------
+      dhanBody.innerHTML = "";
+      symBody.innerHTML = "";
+
+      dhanAgg = {};
+      dhanSeen = new Set();
+
+      symAggMap = {};              // aggregated symphony map
+      symCancelled.clear();
+
+      let hasSym = false;
+      let hasDhan = false;
+
+      // ---------------- PROCESS SNAPSHOT ----------------
+      for (const oid of Object.keys(orders)) {
+        const o = orders[oid];
+        if (!o) continue;
+
+        const looksLikeSym =
+          o.AppOrderID !== undefined ||
+          o.OrderStatus !== undefined ||
+          o.TradingSymbol !== undefined;
+
+        const looksLikeDhan =
+          !looksLikeSym &&
+          (o.transactionType !== undefined ||
+            o.exchangeSegment !== undefined ||
+            o.exchangeOrderId !== undefined);
+
+        // ---------- Skip CANCELLED Symphony ONLY ----------
+        if (looksLikeSym) {
+          const status = (o.OrderStatus || o.orderStatus || "").toString().toUpperCase();
+          if (["PENDINGNEW", "CANCELLED", "CANCELED", "CANCL", "CXL", "REJECTED"].includes(status)) {
+            continue;
+          }
+        }
+
+        try {
+          if (looksLikeSym) {
+            hasSym = true;
+            handleSym(o);
+          } else if (looksLikeDhan) {
+            hasDhan = true;
+            handleDhan(o);
+          }
+        } catch (err) {
+          console.error("renderOrders -> handler failed", err);
+          appendLog("renderOrders handler error: " + err.message);
+        }
+      }
+
+      suppressLogs = false;
+
+      // ---------------- UI VISIBILITY (ONCE) ----------------
+      if (hasSym) {
+        symSection.style.display = "block";
+        dhanSection.style.display = "none";
+      } else if (hasDhan) {
+        dhanSection.style.display = "block";
+        symSection.style.display = "none";
+      }
+
+      // ---------------- FINAL TOTAL (AGGREGATED) ----------------
+      updateSymAggTotal();
+
+      appendLog(`renderOrders completed: Dhan rows=${dhanBody.children.length}, ` + `Sym rows=${symBody.children.length}`);
+    }
+
+
+    function renderPositions() {
+      appendLog("Rendering snapshot positions: " + Object.keys(positions).length);
+      console.log("renderPositions() - positions count:", Object.keys(positions).length);
+
+      const searchInput = document.getElementById("position-search").value.toUpperCase().trim();
+      // Determine provider from current selected user
+      const isDhan = currentUser && userProvider[currentUser] === 'dhan';
+      const isSymphony = currentUser && userProvider[currentUser] === 'symphony';
+
+      // === STEP 1: Save any values user typed in Qty fields ===
+      document.querySelectorAll('#pos-body input[type="number"]').forEach(input => {
+        const row = input.closest('tr');
+        if (!row) return;
+        const symbolCell = row.cells[0];
+        if (!symbolCell) return;
+        const symbol = symbolCell.textContent.trim();
+        if (symbol && input.value.trim() !== '') {
+          qtyInputMemory.set(symbol, input.value.trim());
+        } else {
+          // User cleared the field → remove from memory
+          qtyInputMemory.delete(symbol);
+        }
+      });
+
+      positionCount = 0
+      // Clear body
+      posBody.innerHTML = "";
+
+      // Extract and filter non-zero positions
+      let positionArray = Object.values(positions).filter(p => {
+        const netQty = Number(p.Quantity || p.netQty || p.NetQuantity || ((Number(p.OpenBuyQuantity || p.buyQty || 0) - Number(p.OpenSellQuantity || p.sellQty || 0))));
+        return !isNaN(netQty) && netQty !== 0;
+      });
+
+      // Sort alphabetically by symbol
+      positionArray.sort((a, b) => {
+        const symA = (a.TradingSymbol || a.tradingSymbol || a.symbol || "").toString().trim().toUpperCase();
+        const symB = (b.TradingSymbol || b.tradingSymbol || b.symbol || "").toString().trim().toUpperCase();
+        return symA.localeCompare(symB);
+      });
+
+      // Render rows
+      for (const p of positionArray) {
+        const sym = p.TradingSymbol || p.tradingSymbol || p.symbol || "";
+        
+        if (searchInput && !sym.toUpperCase().includes(searchInput)) {
+          continue;
+        }
+        positionCount++;
+
+        // Common fields
+        const buyAvg = Number(p.BuyAveragePrice || p.buyAvg || p.buyAverage || 0).toFixed(2);
+        const sellAvg = isSymphony ? Number(p.ActualSellAveragePrice || 0).toFixed(2) : Number(p.SellAveragePrice || p.sellAvg || p.sellAverage || 0).toFixed(2);
+
+        // Dhan-specific
+        const dhanNetQty = Number(p.netQty || p.NetQuantity || 0);
+        const dhanexpirydate = p.drvExpiryDate || ''
+
+        // Symphony-specific
+        const symBuyQty = Number(p.OpenBuyQuantity || p.buyQty || 0);
+        const symSellQty = Number(p.OpenSellQuantity || p.sellQty || 0);
+        const symNetQty = Number(p.Quantity || p.netQty || (symBuyQty - symSellQty) || 0);
+
+        const id = `pos-${sym.replace(/[^a-zA-Z0-9\\-_]/g, "_")}`;
+        let row = document.getElementById(id);
+        if (!row) {
+          row = document.createElement("tr");
+          row.id = id;
+          row.innerHTML = "<td></td><td></td><td></td><td></td><td></td><td></td>";
+          posBody.appendChild(row);
+        }
+
+        row.cells[0].textContent = sym;
+        row.cells[1].textContent = symBuyQty;
+        row.cells[2].textContent = symSellQty;
+        row.cells[3].textContent = symNetQty || dhanNetQty;
+        row.cells[4].textContent = buyAvg;
+        row.cells[5].textContent = sellAvg;
+
+        // === Square Off column ===      
+        const SquareOff = document.createElement("td");
+        
+        const btnSquareOff = document.createElement("button");
+        btnSquareOff.className = "btn btn-sm btn-warning";
+        btnSquareOff.textContent = "SQ.OFF";
+        btnSquareOff.style.minWidth = "70px";
+        btnSquareOff.onclick = () => {
+          if (!confirm(`Square off ${sym} for ${activeClientId}?`)) {
+            return;
+          }
+          // ─── Find current net qty from this row ───          
+          const currentNet = isDhan ? dhanNetQty : isSymphony ? symNetQty : symNetQty || dhanNetQty;;
+          
+          // Decide order type based on current direction
+          let orderType;
+          if (currentNet > 0) {
+              orderType = "MARKETSELL";     // already long → add more long
+          } else if (currentNet < 0) {
+              orderType = "MARKETBUY";    // already short → add more short
+          } else {
+              orderType = "MARKETSELL";     // flat → default to buy (change if you prefer sell)
+              // Alternative: orderType = "MARKETSELL";
+          }
+
+          handleSquareOffPosition(activeClientId, sym, currentNet, isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown', orderType, dhanexpirydate);
+        };
+
+        SquareOff.appendChild(btnSquareOff);
+
+
+        // === Action column (Qty + ADD + REDUCE) ===
+        const actionCell = document.createElement("td");
+
+        // Container div for better alignment
+        const buttondiv = document.createElement("div");
+        buttondiv.style.display = "flex";
+        buttondiv.style.alignItems = "center";
+        buttondiv.style.gap = "6px";
+        buttondiv.style.flexWrap = "wrap";
+
+        // Quantity input
+        const qtyInput = document.createElement("input");
+        qtyInput.type = "number";
+        qtyInput.min = "1";
+        qtyInput.placeholder = "Qty";
+        qtyInput.className = "form-control form-control-sm";
+        qtyInput.style.width = "70px";
+        // qtyInput.style.display = "inline-block";
+        // qtyInput.style.marginRight = "8px";
+        qtyInput.style.textAlign = "center";
+
+        // Fix: Add id and name (removes browser warning)
+        const safeSym = sym.replace(/[^a-zA-Z0-9\-_]/g, "_");
+        qtyInput.id = `qty-input-${safeSym}`;
+        qtyInput.name = `quantity-${safeSym}`;
+        qtyInput.autocomplete = "off";
+
+        // Restore previously typed value
+        const savedQty = qtyInputMemory.get(sym);
+        if (savedQty) {
+          qtyInput.value = savedQty;
+        }
+
+        // ADD button
+        const btnAdd = document.createElement("button");
+        btnAdd.className = "btn btn-sm btn-success me-1";
+        btnAdd.textContent = "ADD";
+        btnAdd.style.minWidth = "60px";
+
+        btnAdd.onclick = () => {
+          const qty = parseInt(qtyInput.value) || 0;
+          if (qty < 1) {
+            alert("Please enter valid quantity (≥ 1)");
+            return;
+          }
+          // ─── Find current net qty from this row ───          
+          const currentNet = isDhan ? dhanNetQty : isSymphony ? symNetQty : symNetQty || dhanNetQty;;
+          
+          // Decide order type based on current direction
+          let orderType;
+          if (currentNet > 0) {
+              orderType = "MARKETBUY";     // already long → add more long
+          } else if (currentNet < 0) {
+              orderType = "MARKETSELL";    // already short → add more short
+          } else {
+              orderType = "MARKETBUY";     // flat → default to buy (change if you prefer sell)
+              // Alternative: orderType = "MARKETSELL";
+          }
+          handleAddPosition(activeClientId, sym, qty, isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown', orderType, dhanexpirydate);
+          qtyInput.value = '';
+          qtyInputMemory.delete(sym);
+        };
+
+        // REDUCE button
+        const btnReduce = document.createElement("button");
+        btnReduce.className = "btn btn-sm btn-danger";
+        btnReduce.textContent = "REDUCE";
+        btnReduce.style.minWidth = "70px";
+
+        btnReduce.onclick = () => {
+          const qty = parseInt(qtyInput.value) || 0;
+          if (qty < 1) {
+            alert("Please enter valid quantity (≥ 1)");
+            return;
+          }
+          // ─── Find current net qty from this row ───          
+          const currentNet = isDhan ? dhanNetQty : isSymphony ? symNetQty : symNetQty || dhanNetQty;;
+          
+          // Decide order type based on current direction
+          let orderType;
+          if (currentNet > 0) {
+              orderType = "MARKETSELL";     // already long → add more long
+          } else if (currentNet < 0) {
+              orderType = "MARKETBUY";    // already short → add more short
+          } else {
+              orderType = "MARKETSELL";     // flat → default to buy (change if you prefer sell)
+              // Alternative: orderType = "MARKETSELL";
+          }
+          handleReducePosition(activeClientId, sym, qty, isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown', orderType, dhanexpirydate);
+          qtyInput.value = '';
+          qtyInputMemory.delete(sym);
+        };
+
+        // Assemble action cell
+        buttondiv.appendChild(qtyInput);
+        buttondiv.appendChild(btnAdd);
+        buttondiv.appendChild(btnReduce);
+        
+        actionCell.appendChild(buttondiv);
+
+        row.appendChild(SquareOff);
+        row.appendChild(actionCell);
+
+      }
+
+      updatePositionsTotal(positionCount);
+      appendLog("renderPositions completed: rows=" + posBody.children.length + ` (provider: ${isDhan ? 'Dhan' : isSymphony ? 'Symphony' : 'Unknown'})`);
+    }
+
+    // Live Search Handler
+    function initPositionSearch() {
+      const searchInput = document.getElementById("position-search");
+      if (searchInput) {
+        searchInput.addEventListener("input", renderPositions);
+      }
+    }
+
+
+    async function loadInitialSnapshot(userId) {
+      appendLog("Loading initial snapshot for: " + userId);
+      if (snapshotLoadedForOrders && snapshotLoadedForPositions) {
+        appendLog("Snapshot already loaded, skipping");
+        return;
+      }
+
+      let tmpOrders = {};
+      let tmpPositions = {};
+
+      // ---------------------------------------------------
+      // 1) LOAD ORDERS SNAPSHOT
+      // ---------------------------------------------------
+      try {
+        const resO = await fetch(`/initial-orders/${userId}`);
+        const dataO = await resO.json();
+
+        (dataO.orders || []).forEach(o => {
+          // normalize reason:
+          // Dhan     → orderId
+          // Symphony → AppOrderID
+          let oid =
+            o.orderId ||
+            o.AppOrderID ||
+            o.AppOrderId ||
+            o.OrderID;
+
+          if (oid) {
+            tmpOrders[String(oid)] = o;
+          }
+        });
+
+        appendLog("Initial Orders Loaded: " + Object.keys(tmpOrders).length);
+      } catch (e) {
+        appendLog("ERROR loading initial orders: " + e);
+      }
+
+      // ---------------------------------------------------
+      // 2) LOAD POSITIONS SNAPSHOT
+      // ---------------------------------------------------
+      try {
+        const resP = await fetch(`/initial-positions/${userId}`);
+        const dataP = await resP.json();
+
+        (dataP.positions || []).forEach(p => {
+          // normalize symbol fields:
+          let sym =
+            p.TradingSymbol ||
+            p.tradingSymbol ||
+            p.symbol;
+
+          // normalize instrument ID:
+          let sec =
+            p.ExchangeInstrumentId ||
+            p.securityId ||
+            p.instrumentId;
+
+          if (sym && sec) {
+            const key = `${sym}_${sec}`;
+            tmpPositions[key] = p;
+          }
+        });
+
+        appendLog("Initial Positions Loaded: " + Object.keys(tmpPositions).length);
+      } catch (e) {
+        appendLog("ERROR loading initial positions: " + e);
+      }
+
+      // ---------------------------------------------------
+      // 3) APPLY SNAPSHOTS TO GLOBAL STATE
+      // ---------------------------------------------------
+      orders = tmpOrders;
+      positions = tmpPositions;
+
+      // ---------------------------------------------------
+      // 4) RENDER UI
+      // ---------------------------------------------------
+      renderOrders();      // uses your existing handleDhan + handleSym logic
+      initPositionSearch()
+      renderPositions();   // uses your existing table builder
+      // Add new line
+      updateMismatchIndicators();
+      ////
+      appendLog("Snapshot Render Complete");
+    }
+
+    function getIndexNameFromSymbol(sym, broker) {
+      if (!sym && !broker) return null;
+      sym = sym.toUpperCase().trim();
+      broker = broker.toLowerCase().trim();
+
+      if (broker === "symphony") {
+        return sym.split(" ")[0];
+      } else if (broker === "dhan") {
+        return sym.split("-")[0];
+      }
+      return null
+    }
+
+    async function handleAddPosition(clientId, symbol, quantity, broker, orderType, expiry_date) {
+      // For ADD we can make confirmation optional / lighter
+
+      // Step 1: Lot size validation
+      const indexName = getIndexNameFromSymbol(symbol, broker);
+      if (indexName && indexLotSizes[indexName]) {
+        const lotSize = indexLotSizes[indexName];
+        if (quantity % lotSize !== 0) {
+          alert(
+            `Invalid quantity!\n\n` +
+            `${symbol} (${indexName}) lot size is ${lotSize}.\n` +
+            `You must enter multiple of ${lotSize}.\n\n` +
+            `Entered: ${quantity}  (not divisible by ${lotSize})`
+          );
+          return;  // ← stop here
+        }
+      }
+
+      // But it's still good to confirm if quantity is large
+      const confirmMsg = `Add ${quantity} × ${symbol} for client ${clientId} and brocker ${broker} and Order Type ${orderType}?`;
+
+      if (!confirm(confirmMsg)) {
+        return; // user clicked Cancel → do nothing
+      }
+
+      try {
+        const res = await fetch('/add_position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId, symbol, quantity, broker, orderType, expiry_date })
+        });
+
+        const data = await res.json();
+
+        if (data.success || data.status === "success") {
+          alert(`Successfully added ${quantity} × ${symbol}`);
+          // Optional: refresh the positions table
+          // await refreshPositions();  // or whatever your refresh function is called
+        } else {
+          alert(data.message || "Failed to add position");
+        }
+      } catch (err) {
+        console.error("Add position error:", err);
+        alert("Network error – please try again");
+      }
+    }
+
+
+    async function handleReducePosition(clientId, symbol, quantity, broker, orderType, expiry_date) {
+      const confirmMsg = `REDUCE ${quantity} × ${symbol} for client ${clientId} and broker is ${broker} and order type is ${orderType}?\n\nThis will decrease the position. Are you sure?`;
+
+      if (!confirm(confirmMsg)) {
+        return; // Cancel clicked
+      }
+
+      try {
+        const res = await fetch('/reduce_position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId, symbol, quantity, broker, orderType, expiry_date })
+        });
+
+        const data = await res.json();
+
+        if (data.success || data.status === "success") {
+          alert(`Successfully reduced ${quantity} × ${symbol}`);
+          // await refreshPositions();
+        } else {
+          alert(data.message || "Failed to reduce position");
+        }
+      } catch (err) {
+        console.error("Reduce position error:", err);
+        alert("Network error – please try again");
+      }
+    }
+
+
+    async function handleSquareOffPosition(clientId, symbol, quantity, broker, orderType, expiry_date) {
+      const confirmMsg = `SQUARE OFF entire position of ${symbol} for client ${clientId}?\n\nThis action will close the full position. Are you sure?`;
+
+      if (!confirm(confirmMsg)) {
+        return; // Cancel clicked
+      }
+
+      try {
+        const res = await fetch('/squareoff_position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId, symbol, quantity, broker, orderType, expiry_date })
+        });
+
+        const data = await res.json();
+
+        if (data.success || data.status === "success") {
+          alert(`Successfully squared off ${symbol}`);
+          // await refreshPositions();
+        } else {
+          alert(data.message || "Failed to square off position");
+        }
+      } catch (err) {
+        console.error("Square off error:", err);
+        alert("Network error – please try again");
+      }
+    }
+
+    // Create the new date format: YYYY-MM-DD HH:MM:SS
+    function normalizeDateTime(input) {
+      if (!input) return null;
+
+      // If already in "YYYY-MM-DD HH:MM:SS"
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(input)) {
+        return input;
+      }
+
+      // If in "YYYY-MM-DD"
+      if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+        return input + " 00:00:00";
+      }
+
+      // Try parsing as Date
+      const d = new Date(input);
+      if (isNaN(d.getTime())) return null;
+
+      const pad = n => String(n).padStart(2, "0");
+
+      return (
+        d.getFullYear() + "-" +
+        pad(d.getMonth() + 1) + "-" +
+        pad(d.getDate()) + " " +
+        pad(d.getHours()) + ":" +
+        pad(d.getMinutes()) + ":" +
+        pad(d.getSeconds())
+      );
+    }
+
+    // Check the date format and return only the date (YYYY-MM-DD) in the normalizeDateTime function
+    function getDateOnly(input) {
+      const normalized = normalizeDateTime(input);
+      if (!normalized) return null;
+      return normalized.slice(0, 10); // YYYY-MM-DD
+    }
+
+    // Normalize TradingSymbol for all clients using the format: BANKNIFTY 30DEC2025 CE 60800
+    function normalizeSymbol(p) {
+      let sym = (p.TradingSymbol || p.tradingSymbol || p.symbol || "").trim();
+      // let expiry = (p.drvExpiryDate || "").trim()
+      let expiry = getDateOnly(p.drvExpiryDate);
+
+      if (!sym) return null;
+
+      // Symphony format: BANKNIFTY 30DEC2025 CE 60800
+      if (sym.includes(" ")) {
+        const parts = sym.split(/\s+/);
+        if (parts.length !== 4) return null;
+        return sym.toUpperCase();
+      }
+
+      // Dhan format: BANKNIFTY-Dec2025-57800-PE
+      const parts = sym.split("-");
+      if (parts.length !== 4) return null;
+
+      const [base, exp, strike, type] = parts;
+
+      if (!expiry) return null;
+
+      const [year, month, day] = expiry.split("-");
+      if (!year || !month || !day) return null;
+
+      const mon = exp.slice(0, 3).toUpperCase();
+
+      return `${base.toUpperCase()} ${day}${mon}${year} ${type.toUpperCase()} ${strike}`;
+
+      // const parts = sym.split("-");
+      // if (parts.length !== 4) return null;
+      // return sym.toUpperCase();
+    }
+
+    // Fetch positions for all clients and normalize the TradingSymbol using normalizeSymbol function
+    function getPositionSet(userId) {
+      const set = new Set();
+      for (const p of Object.values(allPositions[userId] || {})) {
+        const norm = normalizeSymbol(p);
+        if (norm) set.add(norm);
+      }
+      return set;
+    }
+
+    // Client button color depends on position match (red if mismatch across Symphony vs Dhan)
+    // Main client 999SP2 button will NEVER be red
+    function updateMismatchIndicators() {
+      const users = Object.keys(userProvider);
+      if (users.length < 2) return;
+
+      // Collect all Symphony users
+      const symUsers = users.filter(u => userProvider[u] === 'symphony');
+      // Collect all Dhan users
+      const dhanUsers = users.filter(u => userProvider[u] === 'dhan');
+
+      if (symUsers.length === 0 || dhanUsers.length === 0) return;
+
+      // Build combined position set from ALL Symphony users
+      const allSymSet = new Set();
+      symUsers.forEach(symU => {
+        const userSet = getPositionSet(symU);
+        userSet.forEach(norm => allSymSet.add(norm));
+      });
+
+      // Build combined position set from ALL Dhan users
+      const allDhanSet = new Set();
+      dhanUsers.forEach(dhanU => {
+        const userSet = getPositionSet(dhanU);
+        userSet.forEach(norm => allDhanSet.add(norm));
+      });
+
+      // Detect any mismatch (either side has extra/missing positions)
+      const symMissingInDhan = [...allSymSet].some(s => !allDhanSet.has(s));
+      const dhanMissingInSym = [...allDhanSet].some(d => !allSymSet.has(d));
+      const hasMismatch = symMissingInDhan || dhanMissingInSym;
+
+      // Apply red class ONLY to Dhan buttons if mismatch exists
+      document.querySelectorAll(".client-btn").forEach(btn => {
+        const btnUser = btn.innerText.trim();
+
+        if (dhanUsers.includes(btnUser) || symUsers.includes(btnUser)) {
+          btn.classList.toggle("mismatch", hasMismatch);
+          btn.title = hasMismatch
+            ? "Positions DO NOT fully match across Symphony & Dhan accounts"
+            : "All positions match across Symphony & Dhan accounts";
+        }
+      });
+
+      // Optional: mark other (non-main) Symphony buttons red too, but NEVER mark 999SP2
+      // Uncomment if you want other Symphony users to show mismatch
+      /*
+      document.querySelectorAll(".client-btn").forEach(btn => {
+        const btnUser = btn.innerText.trim();
+        if (symUsers.includes(btnUser) && btnUser !== "999SP2") {
+          btn.classList.toggle("mismatch", hasMismatch);
+          btn.title = hasMismatch ? "Mismatch detected with Dhan accounts" : "Positions match";
+        }
+      });
+      */
+
+      // Ensure 999SP2 is never red (force remove class)
+      document.querySelectorAll(".client-btn").forEach(btn => {
+        if (btn.innerText.trim() === parent_id) {
+          btn.classList.remove("mismatch");
+          btn.title = "Main Parent Client (Reference)";
+        }
+      });
+    }
+
+    // -------------------- Ratio -----------------------
+    // View switching
+    const dashboardView = document.getElementById('dashboard-view');
+    const ratiosView = document.getElementById('ratios-view');
+    const btnDashboard = document.getElementById('btn-dashboard');
+    const btnRatios = document.getElementById('btn-ratios');
+
+    const rulesView = document.getElementById('rules-view');
+    const rulesStatic = document.getElementById('rules-static');
+    const btnRule = document.getElementById('btn-rule');
+    const btnRefreshRules = document.getElementById('btn-refresh-rules');
+    
+    const btnSL = document.getElementById("btn-sl");
+    const slView = document.getElementById("sl-view");
+
+    const btnSLSquareOff = document.getElementById("squareoff-table");
+    const slsquareOffView = document.getElementById("sl-squareoff-view");
+
+    // Add click handler for Dashboard button
+    btnDashboard.onclick = () => {
+      dashboardView.style.display = 'block';
+      ratiosView.style.display = 'none';
+      rulesView.style.display = 'none';
+      rulesStatic.style.display = 'none';
+      slView.style.display = 'none';
+      slsquareOffView.style.display = 'none';
+
+      btnDashboard.classList.add('active');
+      btnRatios.classList.remove('active');
+      btnRule.classList.remove('active');
+      btnSL.classList.remove('active');
+    };
+    
+    // Add click handler for Ratio button
+    btnRatios.onclick = () => {
+      dashboardView.style.display = 'none';
+      ratiosView.style.display = 'block';
+      rulesView.style.display = 'none';
+      rulesStatic.style.display = 'none';
+      slView.style.display = 'none';
+      slsquareOffView.style.display = 'none';
+      
+      btnDashboard.classList.remove('active');
+      btnRule.classList.remove('active');
+      btnRatios.classList.add('active');
+      btnSL.classList.remove('active');
+      loadRatios(); // Load or refresh ratios when clicked
+    };
+    
+    // Add click handler for Rules button
+    btnRule.onclick = () => {
+      dashboardView.style.display = 'none';
+      ratiosView.style.display = 'none';
+      slView.style.display = 'none';
+      slsquareOffView.style.display = 'none';
+      rulesView.style.display = 'block';
+      rulesStatic.style.display = 'block';
+      
+      btnDashboard.classList.remove('active');
+      btnRatios.classList.remove('active');
+      btnRule.classList.add('active');
+      btnSL.classList.remove('active');
+
+      loadRules(); // Load data immediately when opening the tab
+      loadStaticRules();
+    };
+    
+    btnSL.onclick = () => {
+      // Hide others
+      dashboardView.style.display = "none";
+      ratiosView.style.display = "none";
+      rulesView.style.display = "none";
+      rulesStatic.style.display = 'none';
+
+      // Show SL view
+      slView.style.display = "block";
+      slsquareOffView.style.display = 'block';
+
+      // Highlight button
+      btnDashboard.classList.remove("active");
+      btnRatios.classList.remove("active");
+      btnRule.classList.remove("active");
+      btnSL.classList.add("active");
+
+      // Start WS once
+      if (!wsSL) {
+        loadInitialSLData().then(() => {
+          initSLWebSocket();
+        });
+      } else {
+        renderSLTable();
+        renderSquareOffTable();
+      }
+      setTimeout(() => {
+        initSLSearch();
+        initSLTableSorting();
+        initSquareOffFeatures();
+      }, 100);
+    };
+
+    // ==================== Load Ratios from /ratio API ====================
+    async function loadRatios() {
+      const table = document.getElementById('ratio-table');
+      const tbody = document.getElementById('ratio-body');
+
+      table.style.display = 'none'; // Hide table until ready
+
+      try {
+        const res = await fetch('/ratios');  // Make sure your backend endpoint is /ratio (not /ratios)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+        const records = json.data || [];
+
+        if (!Array.isArray(records) || records.length === 0) {
+          return;
+        }
+
+
+        // ----- Find main client 999SP4 -----
+        let mainAmount = 0;
+        records.forEach(r => {
+          const cid = (r.clientid || r.clientId || '').toString().trim();
+          if (cid === parent_id) {
+            mainAmount = Number(r.amount_in_lacs || 0);
+          }
+        });
+
+        // ----- Sort records to put parent_id first, then others alphabetically -----
+        records.sort((a, b) => {
+          const cidA = (a.clientid || a.clientId || '').toString().trim();
+          const cidB = (b.clientid || b.clientId || '').toString().trim();
+
+          if (cidA === parent_id) return -1;
+          if (cidB === parent_id) return 1;
+          return cidA.localeCompare(cidB);  // Alphabetical for the rest
+        });
+
+        // ----- Build table rows -----
+        tbody.innerHTML = '';
+        records.forEach(r => {
+          const clientId = (r.clientid || r.clientId || 'Unknown').toString().trim();
+          const amount = Number(r.amount_in_lacs || r.amount || 0);
+
+          let ratio = 'N/A';
+          if (mainAmount !== null && mainAmount > 0) {
+            ratio = (amount / mainAmount);
+          }
+
+          const row = document.createElement('tr');
+          if (clientId === parent_id) {
+            row.style.backgroundColor = '#e6ffed';
+            row.style.fontWeight = 'bold';
+          }
+
+          row.innerHTML = `
+            <td>${clientId}</td>
+            <td>${amount.toFixed(2)} lacs</td>
+            <td>${ratio}</td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        table.style.display = 'table';    // NOW SHOW THE TABLE
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // ==================== Load Rules from /rule/ API ====================
+    async function loadRules() {
+      const table = document.getElementById('rules-table');
+      const tbody = document.getElementById('rules-body');
+      const loading = document.getElementById('rules-loading');
+      const errorDiv = document.getElementById('rules-error');
+      const emptyDiv = document.getElementById('rules-empty');
+
+      // Reset states
+      table.style.display = 'none';
+      loading.style.display = 'block';
+      errorDiv.style.display = 'none';
+      emptyDiv.style.display = 'none';
+      tbody.innerHTML = '';
+
+      try {
+        const res = await fetch('/rule/');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+        const records = json.data || [];
+
+        if (!Array.isArray(records) || records.length === 0) {
+          emptyDiv.style.display = 'block';
+          return;
+        }
+
+        // Sort alphabetically by symbol
+        records.sort((a, b) => {
+          const symA = (a.TradingSymbol || "").toString().trim().toUpperCase();
+          const symB = (b.TradingSymbol || "").toString().trim().toUpperCase();
+          return symA.localeCompare(symB);
+        });
+
+        // Build table rows
+        records.forEach(r => {
+          const row = document.createElement('tr');
+
+          // Color row based on status
+          // if (r.status === 'PASS' || r.status === 'OK') {
+          //   row.style.backgroundColor = '#e6ffed';
+          // } else if (r.status === 'FAIL' || r.status.includes('FAIL')) {
+          //   row.style.backgroundColor = '#ffe6e6';
+          // }
+
+          row.innerHTML = `
+            <td>${r.index || '—'}</td>
+            <td>${r.TradingSymbol || '—'}</td>
+            <td>${r.Quantity || '—'}</td>
+            <td>${r.NetAmount || '—'}</td>
+            <td>${(r.result_passed || []).join('<br>') || '—'}</td>
+            <td>${(r.result_failed || []).join('<br>') || '—'}</td>
+            <td>${(r['result.warnings'] || r.warnings || []).join('<br>') || '—'}</td>
+            `;
+          tbody.appendChild(row);
+        });
+
+        // <td><strong>${r.status || '—'}</strong></td>
+        table.style.display = 'table';
+
+      } catch (err) {
+        console.error('Error loading rules:', err);
+        errorDiv.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+
+    async function loadStaticRules() {
+      const listEl = document.getElementById('static-rules-list');
+      const loadingEl = document.getElementById('static-rules-loading');
+      const errorEl = document.getElementById('static-rules-error');
+
+      loadingEl.style.display = 'block';
+      listEl.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/static_rules/');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+
+        if (!json.success || !Array.isArray(json.rules) || json.rules.length === 0) {
+          loadingEl.style.display = 'none';
+          errorEl.innerHTML = json.message || 'No static rules found.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        listEl.innerHTML = '';
+
+        json.rules.forEach(rule => {
+          const li = document.createElement('li');
+          if (rule.number) {
+            li.innerHTML = `<strong>${rule.number}.</strong> ${rule.text}`;
+          } else {
+            li.textContent = rule.text;
+          }
+          listEl.appendChild(li);
+        });
+
+        loadingEl.style.display = 'none';
+        listEl.style.display = 'block';
+
+      } catch (err) {
+        console.error('Failed to load static rules:', err);
+        loadingEl.style.display = 'none';
+        errorEl.style.display = 'block';
+      }
+    }
+
+
+    async function loadStaticRules() {
+      const listEl = document.getElementById('static-rules-list');
+      const loadingEl = document.getElementById('static-rules-loading');
+      const errorEl = document.getElementById('static-rules-error');
+
+      loadingEl.style.display = 'block';
+      listEl.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/static_rules/');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+
+        if (!json.success || !Array.isArray(json.rules) || json.rules.length === 0) {
+          loadingEl.style.display = 'none';
+          errorEl.innerHTML = json.message || 'No static rules found.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        listEl.innerHTML = '';
+
+        json.rules.forEach(rule => {
+          const li = document.createElement('li');
+          if (rule.number) {
+            li.innerHTML = `<strong>${rule.number}.</strong> ${rule.text}`;
+          } else {
+            li.textContent = rule.text;
+          }
+          listEl.appendChild(li);
+        });
+
+        loadingEl.style.display = 'none';
+        listEl.style.display = 'block';
+
+      } catch (err) {
+        console.error('Failed to load static rules:', err);
+        loadingEl.style.display = 'none';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    // ==================== New: Available Funds Functionality ====================
+    const btnShowFunds = document.getElementById('btn-show-funds');
+    const ShowFunds = document.getElementById('fund');
+
+    btnShowFunds.onclick = async () => {
+      if (!activeClientId) {
+        alert('Please select a client first.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/show_available_fund/${activeClientId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        if (data.message && data.message.includes('Error')) {
+          alert(data.message);
+          return;
+        }
+
+        // Populate table
+        ShowFunds.innerHTML = data.data['cash_available'];
+
+      } catch (err) {
+        console.error('Funds fetch error:', err);
+        alert('Error fetching available funds.');
+      }
+    };
+
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: #08111d;
+  --color-ink-900: #101b2d;
+  --color-ink-800: #15263c;
+  --color-ink-700: #20324d;
+  --color-accent: #2dd4bf;
+  --color-accent-dark: #14b8a6;
+  --color-danger: #ff6b6b;
+  --color-danger-dark: #ef4444;
+  --color-surface: #0b1320;
+  --color-surface-soft: #111d2d;
+  --color-panel: #121f32;
+  --color-border: rgba(148, 163, 184, 0.22);
+  --color-buy: #22c55e;
+  --color-sell: #f87171;
+  --shadow-panel: 0 16px 40px rgba(2, 6, 23, 0.38);
+}
+
+:root {
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0b1320;
+  color: #e2e8f0;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(45, 212, 191, 0.12), transparent 30%),
+    linear-gradient(180deg, #091321 0%, #0b1320 100%);
+  color: #e2e8f0;
+  font-family: Inter, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(45, 212, 191, 0.35);
+}
+
+.dark-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.dark-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+@keyframes modalZoomIn {
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes modalZoomOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.88); }
+}
+
+.modal-zoom-in { animation: modalZoomIn 180ms ease-out both; }
+.modal-zoom-out { animation: modalZoomOut 180ms ease-in both; }
